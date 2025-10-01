@@ -86,10 +86,10 @@ const DAOTreasury: React.FC<DAOTreasuryProps> = ({ treasuryId }) => {
         target: `${PACKAGE_ID}::${MODULE_NAME}::create_proposal`,
         arguments: [
           tx.object(treasuryId),
-          tx.pure(newProposal.title),
-          tx.pure(newProposal.description),
-          tx.pure(BigInt(parseFloat(newProposal.amount) * 1_000_000_000)),
-          tx.pure(newProposal.recipient),
+          tx.pure.string(newProposal.title),
+          tx.pure.string(newProposal.description),
+          tx.pure.u64(BigInt(parseFloat(newProposal.amount) * 1_000_000_000)),
+          tx.pure.address(newProposal.recipient),
           tx.object('0x6'),
         ],
       });
