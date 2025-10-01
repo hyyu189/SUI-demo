@@ -645,7 +645,46 @@ module dao_treasury::dao_treasury_tests {
         let (mut treasury, admin_cap, mut clock) = setup_treasury(&mut scenario);
         let ctx = test_scenario::ctx(&mut scenario);
         
+    #[test]
+    #[expected_failure(abort_code = 5)] // E_PROPOSAL_NOT_PASSED
+    fun test_insufficient_quorum() {
+        let mut scenario = test_scenario::begin(MEMBER1);
+        let (mut treasury, admin_cap, mut clock) = setup_treasury(&mut scenario);
+        let ctx = test_scenario::ctx(&mut scenario);
+        
+        // To properly test a 33% quorum, we need at least 4 members so the threshold is 2 votes.
+        dao_treasury::add_member(&mut treasury, &admin_cap, @0x6, ctx);
+
         // Deposit funds
+        let payment = coin::mint_for_testing<SUI>(1000, ctx);
+        dao_treasury::deposit_funds(&mut treasury, payment, ctx);
+        
+        // Create proposal
+        dao_treasury::create_proposal(
+            &mut treasury,
+            b"Test Proposal",
+            b"Test Description",
+            500,
+            RECIENT,
+            &clock,
+            ctx
+        );
+        
+        // Only one member votes, which is less than the 2-vote quorum requirement.
+        dao_treasury::vote_on_proposal(&mut treasury, 0, true, &clock, ctx);
+        
+        // Advance time past voting period
+        clock::increment_for_testing(&mut clock, 8 * 24 * 60 * 60 * 1000);
+        
+        // Try to execute the proposal. It should fail because it was rejected due to insufficient quorum.
+        dao_treasury::execute_proposal(&mut treasury, 0, &clock, ctx);
+        
+        // Clean up
+        test_utils::destroy(treasury);
+        test_utils::destroy(admin_cap);
+        test_utils::destroy(clock);
+        test_scenario::end(scenario);
+    }
         let payment = coin::mint_for_testing<SUI>(1000, ctx);
         dao_treasury::deposit_funds(&mut treasury, payment, ctx);
         
