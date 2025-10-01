@@ -6,6 +6,11 @@ export const MODULE_NAME = 'dao_treasury';
 
 // Utility functions for Sui contract interactions
 
+type TreasuryCreatedEvent = {
+  creator: string;
+  treasury_id: string;
+};
+
 /**
  * Finds treasury objects by querying for the TreasuryCreated event.
  * @param suiClient - The SuiClient instance.
@@ -20,7 +25,10 @@ export const findTreasuryObjectsByEvent = async (suiClient: SuiClient) => {
       order: 'descending',
     });
 
-    const treasuryIds = events.data.map(event => event.parsedJson?.treasury_id);
+    const treasuryIds = events.data
+      .map(event => (event.parsedJson as TreasuryCreatedEvent)?.treasury_id)
+      .filter((id): id is string => !!id);
+
     return await getTreasuryObjectsByIds(suiClient, treasuryIds);
   } catch (error) {
     console.error('Error finding treasury objects by event:', error);
