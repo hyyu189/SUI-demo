@@ -121,8 +121,8 @@ const DAOTreasury: React.FC<DAOTreasuryProps> = ({ treasuryId }) => {
         target: `${PACKAGE_ID}::${MODULE_NAME}::vote_on_proposal`,
         arguments: [
           tx.object(treasuryId),
-          tx.pure(proposalId),
-          tx.pure(vote),
+          tx.pure.u64(proposalId),
+          tx.pure.bool(vote),
           tx.object('0x6'),
         ],
       });
@@ -149,7 +149,7 @@ const DAOTreasury: React.FC<DAOTreasuryProps> = ({ treasuryId }) => {
         target: `${PACKAGE_ID}::${MODULE_NAME}::execute_proposal`,
         arguments: [
           tx.object(treasuryId),
-          tx.pure(proposalId),
+          tx.pure.u64(proposalId),
           tx.object('0x6'),
         ],
       });
