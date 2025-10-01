@@ -5,62 +5,62 @@ import {
   useSuiClient 
 } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { 
+import {
   ArrowLeft,
-  Plus, 
-  Vote, 
-  CheckCircle, 
+  Plus,
+  Vote,
+  CheckCircle,
   XCircle,
   ArrowUpRight,
   Users,
   DollarSign,
-  Clock,
   AlertCircle,
   RefreshCw,
   Wallet
 } from 'lucide-react';
-import { useTreasury } from '../hooks/useTreasury';
 import ProposalTimeline from './ProposalTimeline';
-import { 
-  formatSUI, 
-  suiToMist, 
-  formatAddress, 
-  getProposalStatusText, 
+import AdminPanel from './AdminPanel';
+import {
+  formatSUI,
+  suiToMist,
+  formatAddress,
+  getProposalStatusText,
   getProposalStatusColor,
-  getTimeRemaining,
-  isMember 
+  isMember,
+  PACKAGE_ID,
+  MODULE_NAME
 } from '../utils/suiUtils';
 
 interface DAOTreasuryInterfaceProps {
-  treasuryId: string;
+  treasury: any;
+  adminCap: any;
   onBack: () => void;
+  refreshTreasuries: () => void;
 }
 
 const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({ 
-  treasuryId, 
-  onBack 
+  treasury,
+  adminCap,
+  onBack,
+  refreshTreasuries
 }) => {
   const account = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const suiClient = useSuiClient();
-  
-  const {
-    balance,
-    proposals,
-    members,
-    isLoading,
-    error,
-    refreshData,
-    createProposalTx,
-    voteOnProposalTx,
-    executeProposalTx,
-    finalizeExpiredProposalTx, // NEW: Include finalization function
-    depositFundsTx
-  } = useTreasury(treasuryId);
 
+  const treasuryId = treasury.data?.objectId;
+
+  const [activeTab, setActiveTab] = useState('proposals');
   const [showCreateProposal, setShowCreateProposal] = useState(false);
   const [showDepositFunds, setShowDepositFunds] = useState(false);
   const [transactionLoading, setTransactionLoading] = useState(false);
+
+  // Treasury data state
+  const [balance, setBalance] = useState('0');
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [members, setMembers] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Create proposal form state
   const [newProposal, setNewProposal] = useState({
@@ -75,19 +75,63 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
 
   const userIsMember = account ? isMember(account.address, members) : false;
 
+  // Fetch treasury data
+  const refreshData = async () => {
+    if (!treasuryId) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const treasuryObject = await suiClient.getObject({
+        id: treasuryId,
+        options: { showContent: true },
+      });
+
+      if (treasuryObject.data?.content?.dataType === 'moveObject') {
+        const fields = treasuryObject.data.content.fields as any;
+        setBalance(fields.balance || '0');
+
+        // Ensure proposals is always an array
+        const proposalsData = fields.proposals || [];
+        setProposals(Array.isArray(proposalsData) ? proposalsData : []);
+
+        // Ensure members is always an array
+        const membersData = fields.members || [];
+        setMembers(Array.isArray(membersData) ? membersData : []);
+      }
+    } catch (err) {
+      console.error('Error fetching treasury data:', err);
+      setError('Failed to load treasury data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (treasuryId) {
+      refreshData();
+    }
+  }, [treasuryId]);
+
   const createProposal = async () => {
     if (!account || !newProposal.title || !newProposal.amount || !newProposal.recipient) return;
 
     setTransactionLoading(true);
     try {
       const amountInMist = suiToMist(newProposal.amount);
-      const tx = createProposalTx(
-        treasuryId,
-        newProposal.title,
-        newProposal.description,
-        amountInMist,
-        newProposal.recipient
-      );
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE_NAME}::create_proposal`,
+        arguments: [
+          tx.object(treasuryId),
+          tx.pure.string(newProposal.title),
+          tx.pure.string(newProposal.description),
+          tx.pure.u64(amountInMist),
+          tx.pure.address(newProposal.recipient),
+          tx.object('0x6'), // Clock object
+        ],
+      });
 
       signAndExecute(
         { transaction: tx },
@@ -96,7 +140,7 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
             console.log('Proposal created:', result);
             setShowCreateProposal(false);
             setNewProposal({ title: '', description: '', amount: '', recipient: '' });
-            refreshData(treasuryId);
+            refreshData();
           },
           onError: (error) => {
             console.error('Error creating proposal:', error);
@@ -115,14 +159,23 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
 
     setTransactionLoading(true);
     try {
-      const tx = voteOnProposalTx(treasuryId, proposalId, vote);
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE_NAME}::vote`,
+        arguments: [
+          tx.object(treasuryId),
+          tx.pure.u64(proposalId),
+          tx.pure.bool(vote),
+        ],
+      });
 
       signAndExecute(
         { transaction: tx },
         {
           onSuccess: (result) => {
             console.log('Vote cast:', result);
-            refreshData(treasuryId);
+            refreshData();
           },
           onError: (error) => {
             console.error('Error voting:', error);
@@ -141,14 +194,22 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
 
     setTransactionLoading(true);
     try {
-      const tx = executeProposalTx(treasuryId, proposalId);
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE_NAME}::execute_proposal`,
+        arguments: [
+          tx.object(treasuryId),
+          tx.pure.u64(proposalId),
+        ],
+      });
 
       signAndExecute(
         { transaction: tx },
         {
           onSuccess: (result) => {
             console.log('Proposal executed:', result);
-            refreshData(treasuryId);
+            refreshData();
           },
           onError: (error) => {
             console.error('Error executing proposal:', error);
@@ -162,59 +223,17 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
     }
   };
 
-  // NEW: Finalize expired proposal - addresses the orphaned active proposals issue
-  const finalizeExpiredProposal = async (proposalId: number) => {
-    if (!account) return;
-
-    setTransactionLoading(true);
-    try {
-      const tx = finalizeExpiredProposalTx(treasuryId, proposalId);
-
-      signAndExecute(
-        { transaction: tx },
-        {
-          onSuccess: (result) => {
-            console.log('Proposal finalized:', result);
-            refreshData(treasuryId);
-          },
-          onError: (error) => {
-            console.error('Error finalizing proposal:', error);
-          },
-        }
-      );
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setTransactionLoading(false);
-    }
-  };
-
-  // Helper to check if a proposal is expired but still active
-  const isProposalExpired = (proposal: any) => {
-    const now = Date.now();
-    const endTime = parseInt(proposal.votingEndTime);
-    return proposal.status === 0 && now > endTime;
-  };
-
   const depositFunds = async () => {
     if (!account || !depositAmount) return;
 
     setTransactionLoading(true);
     try {
-      // In a real implementation, you would need to get the user's SUI coins
-      // and select one to transfer. For demo purposes, we'll show the pattern.
       const amountInMist = suiToMist(depositAmount);
-      
-      // This is a simplified version - in practice you'd need to:
-      // 1. Get user's SUI coins
-      // 2. Split the required amount if necessary
-      // 3. Use that coin object in the transaction
-      
       const tx = new Transaction();
-      const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
+      const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountInMist)]);
 
       tx.moveCall({
-        target: `${require('../utils/suiUtils').PACKAGE_ID}::${require('../utils/suiUtils').MODULE_NAME}::deposit_funds`,
+        target: `${PACKAGE_ID}::${MODULE_NAME}::deposit_funds`,
         arguments: [
           tx.object(treasuryId),
           coin,
@@ -228,7 +247,7 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
             console.log('Funds deposited:', result);
             setShowDepositFunds(false);
             setDepositAmount('');
-            refreshData(treasuryId);
+            refreshData();
           },
           onError: (error) => {
             console.error('Error depositing funds:', error);
@@ -240,10 +259,6 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
     } finally {
       setTransactionLoading(false);
     }
-  };
-
-  const refreshTreasury = () => {
-    refreshData(treasuryId);
   };
 
   if (!account) {
@@ -272,7 +287,7 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={refreshTreasury}
+                onClick={refreshData}
                 disabled={isLoading}
                 className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
               >
@@ -325,7 +340,7 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Active Proposals</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {proposals.filter(p => p.status === 0).length}
+                  {(proposals || []).filter((p: any) => p.status === 0).length}
                 </p>
               </div>
             </div>
@@ -336,7 +351,7 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
               <Users className="h-8 w-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">DAO Members</p>
-                <p className="text-2xl font-bold text-gray-900">{members.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{(members || []).length}</p>
               </div>
             </div>
           </div>
@@ -364,94 +379,128 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Proposals Section */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Active Proposals</h2>
+        {/* Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex space-x-4" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('proposals')}
+              className={`px-3 py-2 font-medium text-sm rounded-t-lg ${
+                activeTab === 'proposals' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Proposals
+            </button>
+            {adminCap && (
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`px-3 py-2 font-medium text-sm rounded-t-lg ${
+                  activeTab === 'admin' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Admin Panel
+              </button>
+            )}
+          </nav>
+        </div>
 
-            {isLoading ? (
+        {activeTab === 'proposals' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Proposals Section */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Active Proposals</h2>
+
+              {isLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                 <p className="text-gray-600">Loading proposals...</p>
               </div>
-            ) : proposals.length === 0 ? (
+            ) : (proposals || []).length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-600">No proposals yet. Create the first one!</p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {proposals.map((proposal) => (
-                  <div key={proposal.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {proposal.title}
-                        </h3>
-                        <p className="text-gray-600 mt-1 text-sm">{proposal.description}</p>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {(proposals || []).map((proposal: any) => (
+                    <div key={proposal.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {proposal.title}
+                          </h3>
+                          <p className="text-gray-600 mt-1 text-sm">{proposal.description}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getProposalStatusColor(proposal.status)}`}>
+                          {getProposalStatusText(proposal.status)}
+                        </span>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getProposalStatusColor(proposal.status)}`}>
-                        {getProposalStatusText(proposal.status)}
-                      </span>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Amount</p>
-                        <p className="font-semibold">{formatSUI(proposal.amount)} SUI</p>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Amount</p>
+                          <p className="font-semibold">{formatSUI(proposal.amount)} SUI</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Voting</p>
+                          <p className="font-semibold text-green-600">
+                            {proposal.yesVotes} Yes / {proposal.noVotes} No
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Voting</p>
-                        <p className="font-semibold text-green-600">
-                          {proposal.yesVotes} Yes / {proposal.noVotes} No
-                        </p>
-                      </div>
-                    </div>
 
-                    {proposal.status === 0 && userIsMember && (
-                      <div className="flex space-x-2">
+                      {proposal.status === 0 && userIsMember && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => voteOnProposal(proposal.id, true)}
+                            disabled={transactionLoading}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
+                          >
+                            <CheckCircle className="h-3 w-3" />
+                            <span>Yes</span>
+                          </button>
+                          <button
+                            onClick={() => voteOnProposal(proposal.id, false)}
+                            disabled={transactionLoading}
+                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
+                          >
+                            <XCircle className="h-3 w-3" />
+                            <span>No</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {proposal.status === 1 && userIsMember && (
                         <button
-                          onClick={() => voteOnProposal(proposal.id, true)}
+                          onClick={() => executeProposal(proposal.id)}
                           disabled={transactionLoading}
-                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
                         >
-                          <CheckCircle className="h-3 w-3" />
-                          <span>Yes</span>
+                          <ArrowUpRight className="h-3 w-3" />
+                          <span>Execute</span>
                         </button>
-                        <button
-                          onClick={() => voteOnProposal(proposal.id, false)}
-                          disabled={transactionLoading}
-                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
-                        >
-                          <XCircle className="h-3 w-3" />
-                          <span>No</span>
-                        </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                    {proposal.status === 1 && userIsMember && (
-                      <button
-                        onClick={() => executeProposal(proposal.id)}
-                        disabled={transactionLoading}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1"
-                      >
-                        <ArrowUpRight className="h-3 w-3" />
-                        <span>Execute</span>
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Timeline Section */}
+            <div>
+              <ProposalTimeline 
+                treasuryId={treasuryId} 
+                proposals={proposals} 
+              />
+            </div>
           </div>
-
-          {/* Timeline Section */}
-          <div>
-            <ProposalTimeline 
-              treasuryId={treasuryId} 
-              proposals={proposals} 
-            />
-          </div>
-        </div>
+        )}
+        
+        {activeTab === 'admin' && adminCap && (
+          <AdminPanel
+            treasuryId={treasuryId}
+            adminCapId={adminCap.data.objectId}
+            onMembersUpdated={refreshTreasuries}
+          />
+        )}
 
         {/* Deposit Funds Modal */}
         {showDepositFunds && (

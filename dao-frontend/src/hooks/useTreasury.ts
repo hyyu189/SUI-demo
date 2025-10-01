@@ -1,254 +1,86 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSuiClient, useCurrentAccount } from '@mysten/dapp-kit';
-import { Transaction } from '@mysten/sui/transactions';
+import { SuiObjectResponse } from '@mysten/sui/client';
+import { findTreasuryObjectsByEvent } from '../utils/suiUtils';
+import { PACKAGE_ID, MODULE_NAME } from '../utils/suiUtils';
 
-// Contract configuration
-export const PACKAGE_ID = '0x13952d5bed5f55d5b590a58655521067e172a1d4054db0c61d95427156e462d7';
-export const MODULE_NAME = 'dao_treasury';
-
-// Types
-export interface Proposal {
-  id: number;
-  title: string;
-  description: string;
-  amount: string;
-  recipient: string;
-  proposer: string;
-  createdAt: string;
-  votingEndTime: string;
-  yesVotes: string;
-  noVotes: string;
-  status: number;
-}
-
-export interface TreasuryState {
-  balance: string;
-  proposals: Proposal[];
-  members: string[];
-  isLoading: boolean;
-  error: string | null;
-}
-
-export const useTreasury = (treasuryId?: string) => {
+export const useTreasury = () => {
   const suiClient = useSuiClient();
   const account = useCurrentAccount();
-  
-  const [state, setState] = useState<TreasuryState>({
-    balance: '0',
-    proposals: [],
-    members: [],
-    isLoading: true, // Start with loading true
-    error: null
-  });
+  const [treasuries, setTreasuries] = useState<SuiObjectResponse[]>([]);
+  const [adminCaps, setAdminCaps] = useState<any[]>([]);
+  const [selectedTreasury, setSelectedTreasury] = useState<SuiObjectResponse | null>(null);
+  const [selectedAdminCap, setSelectedAdminCap] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchTreasuryData = useCallback(async (treasuryObjectId: string) => {
-    if (!account) return;
-
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-
+  const findAdminCaps = useCallback(async (ownerAddress: string) => {
+    if (!ownerAddress) return [];
     try {
-      // 1. Get the treasury object which contains balance, members, and next_proposal_id
-      const treasuryObject = await suiClient.getObject({
-        id: treasuryObjectId,
+      const objects = await suiClient.getOwnedObjects({
+        owner: ownerAddress,
+        filter: {
+          StructType: `${PACKAGE_ID}::${MODULE_NAME}::AdminCap`,
+        },
         options: {
           showContent: true,
-        }
+          showType: true,
+        },
       });
+      return objects.data;
+    } catch (err) {
+      console.error('Error fetching AdminCaps:', err);
+      return [];
+    }
+  }, [suiClient]);
 
-      if (!treasuryObject.data?.content || !('fields' in treasuryObject.data.content)) {
-        throw new Error('Invalid treasury object content');
-      }
-
-      const fields = treasuryObject.data.content.fields as any;
-      const balance = fields.balance?.fields?.value || '0';
-      const members = fields.members || [];
-      const nextProposalId = parseInt(fields.next_proposal_id || '0');
+  const loadTreasuries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const foundTreasuries = await findTreasuryObjectsByEvent(suiClient);
+      setTreasuries(foundTreasuries);
       
-      // 2. Fetch all proposals in parallel
-      const proposalPromises = [];
-      for (let i = 0; i < nextProposalId; i++) {
-        proposalPromises.push(
-          suiClient.devInspectTransactionBlock({
-            transactionBlock: (() => {
-              const tx = new Transaction();
-              tx.moveCall({
-                target: `${PACKAGE_ID}::${MODULE_NAME}::get_proposal`,
-                arguments: [
-                  tx.object(treasuryObjectId),
-                  tx.pure.u64(i),
-                ],
-              });
-              return tx;
-            })(),
-            sender: account.address
-          })
-        );
-      }
+      if (account?.address) {
+        const foundAdminCaps = await findAdminCaps(account.address);
+        setAdminCaps(foundAdminCaps);
 
-      const proposalResults = await Promise.all(proposalPromises);
-      
-      const proposals: Proposal[] = proposalResults.map((result, i) => {
-        if (result.results?.[0]?.returnValues && result.results[0].returnValues.length >= 10) {
-          const returnValues = result.results[0].returnValues;
-          return {
-            id: i,
-            title: new TextDecoder().decode(new Uint8Array(returnValues[0][0])),
-            description: new TextDecoder().decode(new Uint8Array(returnValues[1][0])),
-            amount: returnValues[2][0].toString(),
-            recipient: `0x${Buffer.from(returnValues[3][0]).toString('hex')}`,
-            proposer: `0x${Buffer.from(returnValues[4][0]).toString('hex')}`,
-            createdAt: returnValues[5][0].toString(),
-            votingEndTime: returnValues[6][0].toString(),
-            yesVotes: returnValues[7][0].toString(),
-            noVotes: returnValues[8][0].toString(),
-            status: parseInt(Buffer.from(returnValues[9][0]).toString())
-          };
+        if (foundTreasuries.length > 0) {
+          // Default to the first treasury
+          setSelectedTreasury(foundTreasuries[0]);
+          
+          // Find the corresponding AdminCap for the first treasury
+          // This assumes a 1:1 relationship or a specific logic to link them.
+          // For now, we'll just take the first AdminCap found.
+          if (foundAdminCaps.length > 0) {
+            setSelectedAdminCap(foundAdminCaps[0]);
+          }
         }
-        return null;
-      }).filter((p): p is Proposal => p !== null);
-
-      // 3. Update state once with all new data
-      setState({
-        balance,
-        members,
-        proposals,
-        isLoading: false,
-        error: null
-      });
-
-    } catch (error) {
-      console.error('Error fetching treasury data:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: 'Failed to fetch treasury data',
-        isLoading: false 
-      }));
+      }
+    } catch (err) {
+      console.error('Error loading treasuries:', err);
+      setError('Failed to load treasuries.');
+    } finally {
+      setLoading(false);
     }
-  }, [suiClient, account]);
+  }, [suiClient, account, findAdminCaps]);
 
-  // Create proposal transaction
-  const createProposalTx = (
-    treasuryObjectId: string,
-    title: string,
-    description: string,
-    amount: string,
-    recipient: string
-  ) => {
-    const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${PACKAGE_ID}::${MODULE_NAME}::create_proposal`,
-      arguments: [
-        tx.object(treasuryObjectId),
-        tx.pure.string(title),
-        tx.pure.string(description),
-        tx.pure.u64(amount),
-        tx.pure.address(recipient),
-        tx.object('0x6'), // clock object
-      ],
-    });
-
-    return tx;
-  };
-
-  // Vote on proposal transaction
-  const voteOnProposalTx = (
-    treasuryObjectId: string,
-    proposalId: number,
-    vote: boolean
-  ) => {
-    const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${PACKAGE_ID}::${MODULE_NAME}::vote_on_proposal`,
-      arguments: [
-        tx.object(treasuryObjectId),
-        tx.pure.u64(proposalId),
-        tx.pure.bool(vote),
-        tx.object('0x6'), // clock object
-      ],
-    });
-
-    return tx;
-  };
-
-  // Execute proposal transaction
-  const executeProposalTx = (
-    treasuryObjectId: string,
-    proposalId: number
-  ) => {
-    const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${PACKAGE_ID}::${MODULE_NAME}::execute_proposal`,
-      arguments: [
-        tx.object(treasuryObjectId),
-        tx.pure.u64(proposalId),
-        tx.object('0x6'), // clock object
-      ],
-    });
-
-    return tx;
-  };
-
-  // Finalize expired proposal transaction
-  const finalizeExpiredProposalTx = (
-    treasuryObjectId: string,
-    proposalId: number
-  ) => {
-    const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${PACKAGE_ID}::${MODULE_NAME}::finalize_expired_proposal`,
-      arguments: [
-        tx.object(treasuryObjectId),
-        tx.pure.u64(proposalId),
-        tx.object('0x6'), // clock object
-      ],
-    });
-
-    return tx;
-  };
-
-  // Deposit funds transaction
-  const depositFundsTx = (
-    treasuryObjectId: string,
-    coinObjectId: string
-  ) => {
-    const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${PACKAGE_ID}::${MODULE_NAME}::deposit_funds`,
-      arguments: [
-        tx.object(treasuryObjectId),
-        tx.object(coinObjectId),
-      ],
-    });
-
-    return tx;
-  };
-
-  // Refresh all data
-  const refreshData = (treasuryObjectId: string) => {
-    if (treasuryObjectId) {
-      fetchTreasuryData(treasuryObjectId);
-    }
-  };
-
-  // Auto-refresh when account or treasuryId changes
   useEffect(() => {
-    if (account && treasuryId) {
-      fetchTreasuryData(treasuryId);
-    }
-  }, [account, treasuryId, fetchTreasuryData]);
+    loadTreasuries();
+  }, [loadTreasuries]);
+
+  const refresh = () => {
+    loadTreasuries();
+  };
 
   return {
-    ...state,
-    refreshData,
-    createProposalTx,
-    voteOnProposalTx,
-    executeProposalTx,
-    finalizeExpiredProposalTx,
-    depositFundsTx,
+    treasuries,
+    adminCaps,
+    selectedTreasury,
+    selectedAdminCap,
+    loading,
+    error,
+    refresh,
+    setSelectedTreasury,
   };
 };

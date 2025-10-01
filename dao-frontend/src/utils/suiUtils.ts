@@ -1,4 +1,5 @@
 import { SuiClient } from '@mysten/sui/client';
+import { Transaction } from '@mysten/sui/transactions';
 
 // Contract configuration
 export const PACKAGE_ID = '0x13952d5bed5f55d5b590a58655521067e172a1d4054db0c61d95427156e462d7';
@@ -67,11 +68,67 @@ export const getTreasuryObjectsByIds = async (suiClient: SuiClient, objectIds: s
  * Create a new treasury instance
  */
 export const createTreasuryTx = () => {
-  const tx = new (require('@mysten/sui/transactions').Transaction)();
+  const tx = new Transaction();
   
   tx.moveCall({
     target: `${PACKAGE_ID}::${MODULE_NAME}::init_and_share_treasury`,
     arguments: [],
+  });
+
+  return tx;
+};
+
+/**
+ * Add a member to the DAO treasury
+ */
+export const addMemberTx = (treasuryId: string, adminCapId: string, memberAddress: string) => {
+  const tx = new Transaction();
+  
+  tx.moveCall({
+    target: `${PACKAGE_ID}::${MODULE_NAME}::add_member`,
+    arguments: [
+      tx.object(treasuryId),
+      tx.object(adminCapId),
+      tx.pure.address(memberAddress),
+    ],
+  });
+
+  return tx;
+};
+
+/**
+ * Remove a member from the DAO treasury
+ */
+export const removeMemberTx = (treasuryId: string, adminCapId: string, memberAddress: string) => {
+  const tx = new Transaction();
+  
+  tx.moveCall({
+    target: `${PACKAGE_ID}::${MODULE_NAME}::remove_member`,
+    arguments: [
+      tx.object(treasuryId),
+      tx.object(adminCapId),
+      tx.pure.address(memberAddress),
+    ],
+  });
+
+  return tx;
+};
+
+/**
+ * Deposit SUI funds to the treasury
+ */
+export const depositFundsTx = (treasuryId: string, amount: string) => {
+  const tx = new Transaction();
+  
+  // Split coins from gas payment
+  const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amount)]);
+  
+  tx.moveCall({
+    target: `${PACKAGE_ID}::${MODULE_NAME}::deposit_funds`,
+    arguments: [
+      tx.object(treasuryId),
+      coin,
+    ],
   });
 
   return tx;

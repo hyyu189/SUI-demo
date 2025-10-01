@@ -32,8 +32,9 @@ import {
   loadingClasses,
   getStaggerDelay
 } from '../utils/styles';
-import DAOTreasury from './DAOTreasury';
+import DAOTreasuryInterface from './DAOTreasuryInterface';
 import { SuiObjectResponse } from '@mysten/sui/client';
+import { PACKAGE_ID, MODULE_NAME } from '../utils/suiUtils';
 
 type TreasuryObject = SuiObjectResponse;
 
@@ -51,6 +52,7 @@ const TreasuryManager: React.FC = () => {
   const suiClient = useSuiClient();
 
   const [treasuryObjects, setTreasuryObjects] = useState<TreasuryObject[]>([]);
+  const [adminCaps, setAdminCaps] = useState<any[]>([]);
   const [selectedTreasury, setSelectedTreasury] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -64,6 +66,20 @@ const TreasuryManager: React.FC = () => {
       setError(null);
       const objects = await findTreasuryObjectsByEvent(suiClient);
       setTreasuryObjects(objects);
+
+      // Load admin caps
+      const caps = await suiClient.getOwnedObjects({
+        owner: account.address,
+        filter: {
+          StructType: `${PACKAGE_ID}::${MODULE_NAME}::AdminCap`,
+        },
+        options: {
+          showContent: true,
+          showType: true,
+        },
+      });
+      setAdminCaps(caps.data);
+
       if (objects.length > 0 && !selectedTreasury) {
         setSelectedTreasury(objects[0].data?.objectId || null);
       }
@@ -141,15 +157,20 @@ const TreasuryManager: React.FC = () => {
   }
 
   if (selectedTreasury) {
+    const selectedTreasuryObject = treasuryObjects.find(t => t.data?.objectId === selectedTreasury);
+    const adminCap = adminCaps.length > 0 ? adminCaps[0] : null;
+
     return (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <DAOTreasury 
-          treasuryId={selectedTreasury}
+        <DAOTreasuryInterface
+          treasury={selectedTreasuryObject}
+          adminCap={adminCap}
           onBack={() => setSelectedTreasury(null)}
+          refreshTreasuries={loadTreasuryObjects}
         />
       </motion.div>
     );
