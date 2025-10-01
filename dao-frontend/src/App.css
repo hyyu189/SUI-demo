@@ -1,66 +1,306 @@
-/* Additional custom styles for the DAO Treasury app */
+/* Modern Minimal Design System - DAO Treasury App */
+
 .App {
-  text-align: left;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+              linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
 }
 
-/* Custom wallet button styling */
+/* Enhanced Wallet Button Styling */
+/* Enhanced Wallet Button Styling */
 [data-testid="connect-button"] {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border: none;
-  border-radius: 8px;
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
   font-weight: 600;
-  padding: 12px 24px;
   transition: all 0.2s ease;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(14, 165, 233, 0.2);
+  border: none;
+  letter-spacing: 0.025em;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-testid="connect-button"]:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.3);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
 }
 
-/* Loading spinner animation */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+[data-testid="connect-button"]:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.2);
 }
 
+/* Modern Loading States */
 .loading-spinner {
+  @apply inline-block w-5 h-5 border-2 border-gray-200 border-t-primary-600 rounded-full;
   animation: spin 1s linear infinite;
 }
 
-/* Gradient backgrounds */
-.gradient-bg {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.loading-dots {
+  display: inline-flex;
+  gap: 4px;
 }
 
-/* Card hover effects */
-.hover-card {
+.loading-dots span {
+  @apply w-2 h-2 bg-primary-400 rounded-full;
+  animation: pulse 1.4s ease-in-out infinite both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+.loading-dots span:nth-child(3) { animation-delay: 0s; }
+
+/* Enhanced Card Components */
+/* Enhanced Card Components */
+.dao-card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dao-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.dao-card-primary {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(2, 132, 199, 0.1) 100%);
+  border-color: rgba(14, 165, 233, 0.2);
+}
+
+.dao-card-stats {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%);
+}
+
+/* Modern Modal Overlay */
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  @apply card animate-scale-in;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Enhanced Status Indicators */
+.proposal-status {
+  @apply status;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.proposal-status.active {
+  @apply status-active;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.proposal-status.passed {
+  @apply status-success;
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.proposal-status.rejected {
+  @apply status-error;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.proposal-status.executed {
+  @apply bg-purple-50 text-purple-700 border border-purple-200;
+  background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+}
+
+/* Treasury Stats Cards */
+.stats-card {
+  @apply dao-card-stats p-6;
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0ea5e9, #22c55e, #f59e0b);
+  opacity: 0.6;
+}
+
+.stats-value {
+  @apply text-heading-2 font-bold;
+  background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stats-label {
+  @apply text-body-sm text-gray-500 font-medium uppercase tracking-wide;
+}
+
+/* Proposal Cards */
+.proposal-card {
+  @apply dao-card p-6;
+  border-left: 4px solid transparent;
   transition: all 0.3s ease;
 }
 
-.hover-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+.proposal-card.active {
+  border-left-color: #0ea5e9;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%);
 }
 
-/* Status indicators */
-.status-active {
-  background-color: #dbeafe;
-  color: #1e40af;
+.proposal-card.passed {
+  border-left-color: #22c55e;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%);
 }
 
-.status-passed {
-  background-color: #dcfce7;
-  color: #166534;
+.proposal-card.rejected {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%);
 }
 
-.status-rejected {
-  background-color: #fee2e2;
-  color: #991b1b;
+.proposal-card.executed {
+  border-left-color: #8b5cf6;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.02) 0%, rgba(255, 255, 255, 0.95) 100%);
 }
 
-.status-executed {
-  background-color: #f3e8ff;
-  color: #7c3aed;
+/* Modern Form Elements */
+.form-input {
+  @apply input;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.form-input:focus {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.form-textarea {
+  @apply form-input;
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Action Buttons */
+.action-btn {
+  @apply btn transition-all duration-300;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+.action-btn-vote-yes {
+  @apply bg-success-600 text-white hover:bg-success-700;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.2);
+}
+
+.action-btn-vote-no {
+  @apply bg-error-600 text-white hover:bg-error-700;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2);
+}
+
+.action-btn-execute {
+  @apply bg-purple-600 text-white hover:bg-purple-700;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.2);
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Treasury Header */
+.treasury-header {
+  @apply dao-card-primary p-8 mb-8;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(2, 132, 199, 0.05) 100%);
+  border: 1px solid rgba(14, 165, 233, 0.1);
+}
+
+.treasury-title {
+  @apply text-heading-1 text-gray-900 mb-2;
+}
+
+.treasury-subtitle {
+  @apply text-body-lg text-gray-600;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .dao-card {
+    margin: 0 1rem;
+  }
+  
+  .treasury-header {
+    padding: 1.5rem;
+    margin: 0 1rem 2rem;
+  }
+}
+
+/* Loading Skeleton for Better UX */
+.skeleton {
+  @apply loading-skeleton rounded-xl;
+}
+
+.skeleton-text {
+  @apply skeleton h-4 mb-2;
+}
+
+.skeleton-text.lg {
+  @apply h-6;
+}
+
+.skeleton-avatar {
+  @apply skeleton w-12 h-12 rounded-full;
+}
+
+/* Enhanced Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.stagger-children > * {
+  animation-delay: calc(var(--stagger) * 100ms);
 }
