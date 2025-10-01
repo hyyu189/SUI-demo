@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSuiClient, useCurrentAccount } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 
-// Contract configuration - Updated to new deployed contract with Table storage
-export const PACKAGE_ID = '0x2cb4feb7b43c3717b5d7b3b9410719e02adf43ff74e2d8c22595ddf16b8e4ed3';
+// Contract configuration
+export const PACKAGE_ID = '0xbcdb693ee0c3a3b66f0c302d1cb2ecf3606398380907409b92133c29eeca3c24';
 export const MODULE_NAME = 'dao_treasury';
 
 // Types
@@ -37,159 +37,94 @@ export const useTreasury = (treasuryId?: string) => {
     balance: '0',
     proposals: [],
     members: [],
-    isLoading: false,
+    isLoading: true, // Start with loading true
     error: null
   });
 
-  // Fetch treasury balance
-  const fetchBalance = async (treasuryObjectId: string) => {
+  const fetchTreasuryData = useCallback(async (treasuryObjectId: string) => {
+    if (!account) return;
+
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
     try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-      
-      // Get the treasury object
+      // 1. Get the treasury object which contains balance, members, and next_proposal_id
       const treasuryObject = await suiClient.getObject({
         id: treasuryObjectId,
         options: {
           showContent: true,
-          showType: true
         }
       });
 
-      if (treasuryObject.data?.content && 'fields' in treasuryObject.data.content) {
-        const fields = treasuryObject.data.content.fields as any;
-        const balance = fields.balance?.fields?.value || '0';
-        
-        setState(prev => ({ 
-          ...prev, 
-          balance,
-          isLoading: false 
-        }));
+      if (!treasuryObject.data?.content || !('fields' in treasuryObject.data.content)) {
+        throw new Error('Invalid treasury object content');
       }
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: 'Failed to fetch treasury balance',
-        isLoading: false 
-      }));
-    }
-  };
 
-  // Fetch proposals - Updated for Table storage
-  const fetchProposals = async (treasuryObjectId: string) => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      const fields = treasuryObject.data.content.fields as any;
+      const balance = fields.balance?.fields?.value || '0';
+      const members = fields.members || [];
+      const nextProposalId = parseInt(fields.next_proposal_id || '0');
       
-      // Get the treasury object
-      const treasuryObject = await suiClient.getObject({
-        id: treasuryObjectId,
-        options: {
-          showContent: true,
-          showType: true
-        }
-      });
-
-      if (treasuryObject.data?.content && 'fields' in treasuryObject.data.content) {
-        const fields = treasuryObject.data.content.fields as any;
-        
-        // With Table storage, we need to get next_proposal_id to know how many proposals exist
-        const nextProposalId = parseInt(fields.next_proposal_id || '0');
-        const proposals: Proposal[] = [];
-        
-        // Fetch individual proposals using get_proposal function for O(1) access
-        for (let i = 0; i < nextProposalId; i++) {
-          try {
-            // Call the contract's get_proposal function for each proposal ID
-            const result = await suiClient.devInspectTransactionBlock({
-              transactionBlock: (() => {
-                const tx = new Transaction();
-                tx.moveCall({
-                  target: `${PACKAGE_ID}::${MODULE_NAME}::get_proposal`,
-                  arguments: [
-                    tx.object(treasuryObjectId),
-                    tx.pure.u64(i),
-                  ],
-                });
-                return tx;
-              })(),
-              sender: account?.address || '0x0000000000000000000000000000000000000000000000000000000000000000'
-            });
-
-            if (result.results?.[0]?.returnValues) {
-              const returnValues = result.results[0].returnValues;
-              // Parse the returned values: (title, description, amount, recipient, proposer, created_at, voting_end_time, yes_votes, no_votes, status)
-              if (returnValues.length >= 10) {
-                const proposal: Proposal = {
-                  id: i,
-                  title: new TextDecoder().decode(new Uint8Array(returnValues[0][0])),
-                  description: new TextDecoder().decode(new Uint8Array(returnValues[1][0])),
-                  amount: returnValues[2][0].toString(),
-                  recipient: `0x${Buffer.from(returnValues[3][0]).toString('hex')}`,
-                  proposer: `0x${Buffer.from(returnValues[4][0]).toString('hex')}`,
-                  createdAt: returnValues[5][0].toString(),
-                  votingEndTime: returnValues[6][0].toString(),
-                  yesVotes: returnValues[7][0].toString(),
-                  noVotes: returnValues[8][0].toString(),
-                  status: parseInt(returnValues[9][0].toString())
-                };
-                proposals.push(proposal);
-              }
-            }
-          } catch (proposalError) {
-            // Proposal might not exist or be accessible, skip it
-            console.warn(`Could not fetch proposal ${i}:`, proposalError);
-          }
-        }
-
-        setState(prev => ({ 
-          ...prev, 
-          proposals,
-          isLoading: false 
-        }));
+      // 2. Fetch all proposals in parallel
+      const proposalPromises = [];
+      for (let i = 0; i < nextProposalId; i++) {
+        proposalPromises.push(
+          suiClient.devInspectTransactionBlock({
+            transactionBlock: (() => {
+              const tx = new Transaction();
+              tx.moveCall({
+                target: `${PACKAGE_ID}::${MODULE_NAME}::get_proposal`,
+                arguments: [
+                  tx.object(treasuryObjectId),
+                  tx.pure.u64(i),
+                ],
+              });
+              return tx;
+            })(),
+            sender: account.address
+          })
+        );
       }
-    } catch (error) {
-      console.error('Error fetching proposals:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: 'Failed to fetch proposals',
-        isLoading: false 
-      }));
-    }
-  };
 
-  // Fetch members
-  const fetchMembers = async (treasuryObjectId: string) => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      const proposalResults = await Promise.all(proposalPromises);
       
-      // Get the treasury object
-      const treasuryObject = await suiClient.getObject({
-        id: treasuryObjectId,
-        options: {
-          showContent: true,
-          showType: true
+      const proposals: Proposal[] = proposalResults.map((result, i) => {
+        if (result.results?.[0]?.returnValues && result.results[0].returnValues.length >= 10) {
+          const returnValues = result.results[0].returnValues;
+          return {
+            id: i,
+            title: new TextDecoder().decode(new Uint8Array(returnValues[0][0])),
+            description: new TextDecoder().decode(new Uint8Array(returnValues[1][0])),
+            amount: returnValues[2][0].toString(),
+            recipient: `0x${Buffer.from(returnValues[3][0]).toString('hex')}`,
+            proposer: `0x${Buffer.from(returnValues[4][0]).toString('hex')}`,
+            createdAt: returnValues[5][0].toString(),
+            votingEndTime: returnValues[6][0].toString(),
+            yesVotes: returnValues[7][0].toString(),
+            noVotes: returnValues[8][0].toString(),
+            status: parseInt(Buffer.from(returnValues[9][0]).toString())
+          };
         }
+        return null;
+      }).filter((p): p is Proposal => p !== null);
+
+      // 3. Update state once with all new data
+      setState({
+        balance,
+        members,
+        proposals,
+        isLoading: false,
+        error: null
       });
 
-      if (treasuryObject.data?.content && 'fields' in treasuryObject.data.content) {
-        const fields = treasuryObject.data.content.fields as any;
-        const members = fields.members || [];
-        
-        setState(prev => ({ 
-          ...prev, 
-          members,
-          isLoading: false 
-        }));
-      }
     } catch (error) {
-      console.error('Error fetching members:', error);
+      console.error('Error fetching treasury data:', error);
       setState(prev => ({ 
         ...prev, 
-        error: 'Failed to fetch members',
+        error: 'Failed to fetch treasury data',
         isLoading: false 
       }));
     }
-  };
+  }, [suiClient, account]);
 
   // Create proposal transaction
   const createProposalTx = (
@@ -200,13 +135,13 @@ export const useTreasury = (treasuryId?: string) => {
     recipient: string
   ) => {
     const tx = new Transaction();
-    
+
     tx.moveCall({
       target: `${PACKAGE_ID}::${MODULE_NAME}::create_proposal`,
       arguments: [
         tx.object(treasuryObjectId),
-        tx.pure.vector('u8', Array.from(new TextEncoder().encode(title))),
-        tx.pure.vector('u8', Array.from(new TextEncoder().encode(description))),
+        tx.pure.string(title),
+        tx.pure.string(description),
         tx.pure.u64(amount),
         tx.pure.address(recipient),
         tx.object('0x6'), // clock object
@@ -223,7 +158,7 @@ export const useTreasury = (treasuryId?: string) => {
     vote: boolean
   ) => {
     const tx = new Transaction();
-    
+
     tx.moveCall({
       target: `${PACKAGE_ID}::${MODULE_NAME}::vote_on_proposal`,
       arguments: [
@@ -243,7 +178,7 @@ export const useTreasury = (treasuryId?: string) => {
     proposalId: number
   ) => {
     const tx = new Transaction();
-    
+
     tx.moveCall({
       target: `${PACKAGE_ID}::${MODULE_NAME}::execute_proposal`,
       arguments: [
@@ -256,13 +191,13 @@ export const useTreasury = (treasuryId?: string) => {
     return tx;
   };
 
-  // NEW: Finalize expired proposal transaction - addresses the orphaned active proposals issue
+  // Finalize expired proposal transaction
   const finalizeExpiredProposalTx = (
     treasuryObjectId: string,
     proposalId: number
   ) => {
     const tx = new Transaction();
-    
+
     tx.moveCall({
       target: `${PACKAGE_ID}::${MODULE_NAME}::finalize_expired_proposal`,
       arguments: [
@@ -281,7 +216,7 @@ export const useTreasury = (treasuryId?: string) => {
     coinObjectId: string
   ) => {
     const tx = new Transaction();
-    
+
     tx.moveCall({
       target: `${PACKAGE_ID}::${MODULE_NAME}::deposit_funds`,
       arguments: [
@@ -294,22 +229,18 @@ export const useTreasury = (treasuryId?: string) => {
   };
 
   // Refresh all data
-  const refreshData = async (treasuryObjectId: string) => {
-    if (!treasuryObjectId) return;
-    
-    await Promise.all([
-      fetchBalance(treasuryObjectId),
-      fetchProposals(treasuryObjectId),
-      fetchMembers(treasuryObjectId)
-    ]);
+  const refreshData = (treasuryObjectId: string) => {
+    if (treasuryObjectId) {
+      fetchTreasuryData(treasuryObjectId);
+    }
   };
 
   // Auto-refresh when account or treasuryId changes
   useEffect(() => {
     if (account && treasuryId) {
-      refreshData(treasuryId);
+      fetchTreasuryData(treasuryId);
     }
-  }, [account, treasuryId]);
+  }, [account, treasuryId, fetchTreasuryData]);
 
   return {
     ...state,
@@ -317,10 +248,7 @@ export const useTreasury = (treasuryId?: string) => {
     createProposalTx,
     voteOnProposalTx,
     executeProposalTx,
-    finalizeExpiredProposalTx, // NEW: Export the finalization function
+    finalizeExpiredProposalTx,
     depositFundsTx,
-    fetchBalance,
-    fetchProposals,
-    fetchMembers
   };
 };

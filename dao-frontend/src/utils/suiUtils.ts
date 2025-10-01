@@ -1,21 +1,26 @@
 import { SuiClient } from '@mysten/sui/client';
 
 // Contract configuration
-export const PACKAGE_ID = '0xf00ae3c3d5c6abd9f5df86df095e7a99d382a5c1ba89ee97ae0a2fd7d3c33dc9';
+export const PACKAGE_ID = '0xbcdb693ee0c3a3b66f0c302d1cb2ecf3606398380907409b92133c29eeca3c24';
 export const MODULE_NAME = 'dao_treasury';
 
 // Utility functions for Sui contract interactions
 
 /**
  * Find treasury objects created by the deployed package
+ * NOTE: queryObjects API has been removed from newer Sui SDK versions
+ * Use getOwnedObjects with owner address instead
  */
-export const findTreasuryObjects = async (suiClient: SuiClient) => {
+export const findTreasuryObjects = async (suiClient: SuiClient, ownerAddress?: string) => {
   try {
-    // Look for objects created by our package
-    const objects = await suiClient.queryObjects({
-      filter: {
-        Package: PACKAGE_ID
-      },
+    if (!ownerAddress) {
+      console.warn('Owner address required to query objects');
+      return [];
+    }
+
+    // Query objects owned by the address
+    const objects = await suiClient.getOwnedObjects({
+      owner: ownerAddress,
       options: {
         showContent: true,
         showType: true,
@@ -23,9 +28,10 @@ export const findTreasuryObjects = async (suiClient: SuiClient) => {
       }
     });
 
-    // Filter for Treasury objects
-    const treasuryObjects = objects.data.filter(obj => 
-      obj.data?.type?.includes('Treasury')
+    // Filter for Treasury objects from our package
+    const treasuryObjects = objects.data.filter(obj =>
+      obj.data?.type?.includes('Treasury') &&
+      obj.data?.type?.includes(PACKAGE_ID)
     );
 
     return treasuryObjects;
