@@ -18,7 +18,6 @@ import {
   formatAddress, 
   getProposalStatusText, 
   getProposalStatusColor,
-  findTreasuryEvents,
   PACKAGE_ID 
 } from '../utils/suiUtils';
 
