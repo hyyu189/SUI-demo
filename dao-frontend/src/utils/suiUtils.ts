@@ -1,7 +1,7 @@
 import { SuiClient } from '@mysten/sui/client';
 
 // Contract configuration
-export const PACKAGE_ID = '0xbcdb693ee0c3a3b66f0c302d1cb2ecf3606398380907409b92133c29eeca3c24';
+export const PACKAGE_ID = '0x13952d5bed5f55d5b590a58655521067e172a1d4054db0c61d95427156e462d7';
 export const MODULE_NAME = 'dao_treasury';
 
 // Utility functions for Sui contract interactions
