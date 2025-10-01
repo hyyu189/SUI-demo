@@ -1,0 +1,66 @@
+/* Additional custom styles for the DAO Treasury app */
+.App {
+  text-align: left;
+}
+
+/* Custom wallet button styling */
+[data-testid="connect-button"] {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  padding: 12px 24px;
+  transition: all 0.2s ease;
+}
+
+[data-testid="connect-button"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Gradient backgrounds */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Card hover effects */
+.hover-card {
+  transition: all 0.3s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Status indicators */
+.status-active {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-passed {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-rejected {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-executed {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+}
