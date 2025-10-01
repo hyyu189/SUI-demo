@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 // Contract configuration
-const PACKAGE_ID = '0x0ae29b6c03c9151219c92a18e34561b47493f384ec479aa47bcc988ca7b40952';
+const PACKAGE_ID = '0xbcdb693ee0c3a3b66f0c302d1cb2ecf3606398380907409b92133c29eeca3c24';
 const MODULE_NAME = 'dao_treasury';
 
 interface Proposal {

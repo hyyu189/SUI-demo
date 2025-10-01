@@ -212,7 +212,7 @@ const DAOTreasuryInterface: React.FC<DAOTreasuryInterfaceProps> = ({
       
       const tx = new Transaction();
       const [coin] = tx.splitCoins(tx.gas, [amountInMist]);
-      
+
       tx.moveCall({
         target: `${require('../utils/suiUtils').PACKAGE_ID}::${require('../utils/suiUtils').MODULE_NAME}::deposit_funds`,
         arguments: [
