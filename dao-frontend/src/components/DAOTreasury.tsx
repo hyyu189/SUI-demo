@@ -110,7 +110,6 @@ const DAOTreasury: React.FC<DAOTreasuryProps> = ({ treasuryId, onBack }) => {
   };
 
   const createProposal = async () => {
-  const createProposal = async () => {
     if (!account) return;
     setLoading(true);
     try {

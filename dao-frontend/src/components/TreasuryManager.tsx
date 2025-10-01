@@ -18,35 +18,32 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { 
-  findTreasuryObjectsByEvent, 
-  createTreasuryTx 
+import {
+  findTreasuryObjectsByEvent,
+  createTreasuryTx
 } from '../utils/suiUtils';
-import { 
-  cn, 
-  layoutClasses, 
-  cardVariants, 
-  buttonVariants, 
+import {
+  cn,
+  layoutClasses,
+  cardVariants,
+  buttonVariants,
   typographyClasses,
   animationClasses,
   loadingClasses,
   getStaggerDelay
 } from '../utils/styles';
 import DAOTreasury from './DAOTreasury';
+import { SuiObjectResponse } from '@mysten/sui/client';
 
-interface TreasuryObject {
-  data?: {
-    objectId: string;
-    content?: {
-      fields?: {
-        balance?: string;
-        member_count?: string;
-        proposal_count?: string;
-        created_at?: string;
-      };
-    };
-  };
-}
+type TreasuryObject = SuiObjectResponse;
+
+// Helper to safely extract fields from treasury object
+const getTreasuryFields = (treasury: SuiObjectResponse) => {
+  if (treasury.data?.content?.dataType === 'moveObject') {
+    return treasury.data.content.fields as any;
+  }
+  return null;
+};
 
 const TreasuryManager: React.FC = () => {
   const account = useCurrentAccount();
@@ -290,19 +287,19 @@ const TreasuryManager: React.FC = () => {
                               <div className="flex items-center">
                                 <TrendingUp className="h-4 w-4 text-success-500 mr-1" />
                                 <span className="text-gray-600">
-                                  {formatSUI(treasury.data?.content?.fields?.balance || '0')} SUI
+                                  {formatSUI(getTreasuryFields(treasury)?.balance || '0')} SUI
                                 </span>
                               </div>
                               <div className="flex items-center">
                                 <Users className="h-4 w-4 text-primary-500 mr-1" />
                                 <span className="text-gray-600">
-                                  {treasury.data?.content?.fields?.member_count || '0'} members
+                                  {getTreasuryFields(treasury)?.member_count || '0'} members
                                 </span>
                               </div>
                               <div className="flex items-center">
                                 <Clock className="h-4 w-4 text-gray-400 mr-1" />
                                 <span className="text-gray-600">
-                                  {formatDate(treasury.data?.content?.fields?.created_at || '0')}
+                                  {formatDate(getTreasuryFields(treasury)?.created_at || '0')}
                                 </span>
                               </div>
                             </div>

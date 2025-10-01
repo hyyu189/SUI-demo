@@ -36,8 +36,14 @@
 }
 
 /* Modern Loading States */
+/* Modern Loading States */
 .loading-spinner {
-  @apply inline-block w-5 h-5 border-2 border-gray-200 border-t-primary-600 rounded-full;
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid #e5e7eb;
+  border-top-color: #0ea5e9;
+  border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
@@ -47,7 +53,10 @@
 }
 
 .loading-dots span {
-  @apply w-2 h-2 bg-primary-400 rounded-full;
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: #60a5fa;
+  border-radius: 50%;
   animation: pulse 1.4s ease-in-out infinite both;
 }
 
@@ -95,6 +104,7 @@
 }
 
 /* Modern Modal Overlay */
+/* Modern Modal Overlay */
 .modal-overlay {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
@@ -102,42 +112,62 @@
 }
 
 .modal-content {
-  @apply card animate-scale-in;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+  animation: scaleIn 0.2s ease-out;
   max-height: 90vh;
   overflow-y: auto;
 }
 
 /* Enhanced Status Indicators */
 .proposal-status {
-  @apply status;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .proposal-status.active {
-  @apply status-active;
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
 }
 
 .proposal-status.passed {
-  @apply status-success;
   background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #15803d;
+  border: 1px solid #bbf7d0;
 }
 
 .proposal-status.rejected {
-  @apply status-error;
   background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #b91c1c;
+  border: 1px solid #fecaca;
 }
 
 .proposal-status.executed {
-  @apply bg-purple-50 text-purple-700 border border-purple-200;
   background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  color: #7c3aed;
+  border: 1px solid #e9d5ff;
 }
 
 /* Treasury Stats Cards */
 .stats-card {
-  @apply dao-card-stats p-6;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%);
+  padding: 1.5rem;
   position: relative;
   overflow: hidden;
 }
@@ -154,7 +184,9 @@
 }
 
 .stats-value {
-  @apply text-heading-2 font-bold;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1.3;
   background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -162,12 +194,25 @@
 }
 
 .stats-label {
-  @apply text-body-sm text-gray-500 font-medium uppercase tracking-wide;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 /* Proposal Cards */
 .proposal-card {
-  @apply dao-card p-6;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1.5rem;
   border-left: 4px solid transparent;
   transition: all 0.3s ease;
 }
@@ -193,43 +238,85 @@
 }
 
 /* Modern Form Elements */
+/* Modern Form Elements */
 .form-input {
-  @apply input;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #d1d5db;
   background: rgba(255, 255, 255, 0.9);
+  color: #111827;
+  font-size: 1rem;
+  line-height: 1.5;
   backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
 }
 
 .form-input:focus {
+  outline: none;
   background: rgba(255, 255, 255, 1);
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1), 0 0 0 2px #0ea5e9;
 }
 
 .form-textarea {
-  @apply form-input;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #d1d5db;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111827;
+  font-size: 1rem;
+  line-height: 1.5;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
   resize: vertical;
   min-height: 100px;
 }
 
 /* Action Buttons */
 .action-btn {
-  @apply btn transition-all duration-300;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
   font-weight: 600;
+  font-size: 0.875rem;
   letter-spacing: 0.025em;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .action-btn-vote-yes {
-  @apply bg-success-600 text-white hover:bg-success-700;
+  background-color: #16a34a;
+  color: white;
   box-shadow: 0 4px 14px rgba(34, 197, 94, 0.2);
 }
 
+.action-btn-vote-yes:hover {
+  background-color: #15803d;
+}
+
 .action-btn-vote-no {
-  @apply bg-error-600 text-white hover:bg-error-700;
+  background-color: #dc2626;
+  color: white;
   box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2);
 }
 
+.action-btn-vote-no:hover {
+  background-color: #b91c1c;
+}
+
 .action-btn-execute {
-  @apply bg-purple-600 text-white hover:bg-purple-700;
+  background-color: #7c3aed;
+  color: white;
   box-shadow: 0 4px 14px rgba(139, 92, 246, 0.2);
+}
+
+.action-btn-execute:hover {
+  background-color: #6d28d9;
 }
 
 .action-btn:hover {
@@ -238,17 +325,33 @@
 
 /* Treasury Header */
 .treasury-header {
-  @apply dao-card-primary p-8 mb-8;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(2, 132, 199, 0.1) 100%);
+  border-color: rgba(14, 165, 233, 0.2);
+  padding: 2rem;
+  margin-bottom: 2rem;
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(2, 132, 199, 0.05) 100%);
   border: 1px solid rgba(14, 165, 233, 0.1);
 }
 
 .treasury-title {
-  @apply text-heading-1 text-gray-900 mb-2;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #111827;
+  margin-bottom: 0.5rem;
 }
 
 .treasury-subtitle {
-  @apply text-body-lg text-gray-600;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: #4b5563;
 }
 
 /* Responsive Utilities */
@@ -269,22 +372,37 @@
 }
 
 /* Loading Skeleton for Better UX */
+/* Loading Skeleton for Better UX */
 .skeleton {
-  @apply loading-skeleton rounded-xl;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 0.75rem;
 }
 
 .skeleton-text {
-  @apply skeleton h-4 mb-2;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  height: 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.25rem;
 }
 
 .skeleton-text.lg {
-  @apply h-6;
+  height: 1.5rem;
 }
 
 .skeleton-avatar {
-  @apply skeleton w-12 h-12 rounded-full;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
 }
 
+/* Enhanced Animations */
 /* Enhanced Animations */
 @keyframes fadeInUp {
   from {
@@ -294,6 +412,53 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
 
