@@ -9,6 +9,7 @@ module dao_treasury::dao_treasury {
     use sui::transfer;
     use sui::event;
     use sui::clock::{Self, Clock};
+    use sui::table::{Self, Table};
     use std::vector;
     use std::string::{Self, String};
 
@@ -28,6 +29,7 @@ module dao_treasury::dao_treasury {
     const E_INVALID_ADMIN_TRANSFER: u64 = 13;
     const E_INSUFFICIENT_QUORUM: u64 = 14;
     const E_PROPOSAL_ALREADY_FINALIZED: u64 = 15;
+    const E_VOTING_PERIOD_NOT_ENDED: u64 = 16;
 
     // Constants
     const VOTING_PERIOD_MS: u64 = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
@@ -46,7 +48,7 @@ module dao_treasury::dao_treasury {
         balance: Balance<SUI>,
         members: vector<address>,
         next_proposal_id: u64,
-        proposals: vector<Proposal>,
+        proposals: Table<u64, Proposal>,
     }
 
     /// Individual proposal structure
@@ -124,7 +126,7 @@ module dao_treasury::dao_treasury {
             balance: balance::zero(),
             members: vector::empty(),
             next_proposal_id: 0,
-            proposals: vector::empty(),
+            proposals: table::new(ctx),
         };
 
         let admin_cap = AdminCap {
@@ -224,8 +226,13 @@ module dao_treasury::dao_treasury {
         let description_str = string::utf8(description);
 
         let current_time = clock::timestamp_ms(clock);
+        let proposal_id = treasury.next_proposal_id;
+        
+        // Create a copy of the title for the event before moving the proposal
+        let event_title = string::substring(&title_str, 0, string::length(&title_str));
+        
         let proposal = Proposal {
-            id: treasury.next_proposal_id,
+            id: proposal_id,
             title: title_str,
             description: description_str,
             amount,
@@ -239,16 +246,12 @@ module dao_treasury::dao_treasury {
             status: STATUS_ACTIVE,
         };
 
-        vector::push_back(&mut treasury.proposals, proposal);
-
-        // Get the title from the stored proposal to avoid moved value error
-        let stored_proposal = vector::borrow(&treasury.proposals, vector::length(&treasury.proposals) - 1);
-        // Create a copy of the string using substring to get the full string
-        let event_title = string::substring(&stored_proposal.title, 0, string::length(&stored_proposal.title));
+        // Add proposal to table using O(1) operation
+        table::add(&mut treasury.proposals, proposal_id, proposal);
 
         event::emit(ProposalCreated {
             treasury_id: object::uid_to_address(&treasury.id),
-            proposal_id: treasury.next_proposal_id,
+            proposal_id,
             title: event_title,
             amount,
             proposer: sender,
@@ -301,6 +304,7 @@ module dao_treasury::dao_treasury {
     }
 
     /// Execute a passed proposal with race condition protection
+    /// Execute a passed proposal with race condition protection
     public fun execute_proposal(
         treasury: &mut Treasury,
         proposal_id: u64,
@@ -346,6 +350,25 @@ module dao_treasury::dao_treasury {
         });
     }
 
+    /// Finalize an expired proposal that hasn't been finalized yet
+    /// Anyone can call this function to clean up orphaned active proposals
+    public fun finalize_expired_proposal(
+        treasury: &mut Treasury,
+        proposal_id: u64,
+        clock: &Clock,
+        _ctx: &mut TxContext
+    ) {
+        let total_members = vector::length(&treasury.members);
+        let proposal = get_proposal_mut(treasury, proposal_id);
+        
+        // Only finalize if proposal is still active and voting period has ended
+        assert!(proposal.status == STATUS_ACTIVE, E_PROPOSAL_ALREADY_FINALIZED);
+        assert!(clock::timestamp_ms(clock) > proposal.voting_end_time, E_VOTING_PERIOD_NOT_ENDED);
+        
+        // Finalize the proposal based on current voting results
+        finalize_proposal(proposal, total_members);
+    }
+
     // Helper functions
 
     /// Check if an address is a member of the DAO
@@ -353,18 +376,10 @@ module dao_treasury::dao_treasury {
         vector::contains(&treasury.members, &member)
     }
 
-    /// Get a mutable reference to a proposal
+    /// Get a mutable reference to a proposal - O(1) lookup
     fun get_proposal_mut(treasury: &mut Treasury, proposal_id: u64): &mut Proposal {
-        let mut i = 0;
-        let len = vector::length(&treasury.proposals);
-        while (i < len) {
-            let proposal = vector::borrow_mut(&mut treasury.proposals, i);
-            if (proposal.id == proposal_id) {
-                return proposal
-            };
-            i = i + 1;
-        };
-        abort E_PROPOSAL_NOT_FOUND
+        assert!(table::contains(&treasury.proposals, proposal_id), E_PROPOSAL_NOT_FOUND);
+        table::borrow_mut(&mut treasury.proposals, proposal_id)
     }
 
     /// Finalize a proposal based on voting results with enhanced security
@@ -413,34 +428,27 @@ module dao_treasury::dao_treasury {
         &treasury.members
     }
 
-    /// Get proposal count
+    /// Get proposal count - O(1) operation
     public fun get_proposal_count(treasury: &Treasury): u64 {
-        vector::length(&treasury.proposals)
+        table::length(&treasury.proposals)
     }
 
-    /// Get proposal details
+    /// Get proposal details - O(1) lookup
     public fun get_proposal(treasury: &Treasury, proposal_id: u64): (String, String, u64, address, address, u64, u64, u64, u64, u8) {
-        let mut i = 0;
-        let len = vector::length(&treasury.proposals);
-        while (i < len) {
-            let proposal = vector::borrow(&treasury.proposals, i);
-            if (proposal.id == proposal_id) {
-                return (
-                    proposal.title,
-                    proposal.description,
-                    proposal.amount,
-                    proposal.recipient,
-                    proposal.proposer,
-                    proposal.created_at,
-                    proposal.voting_end_time,
-                    proposal.yes_votes,
-                    proposal.no_votes,
-                    proposal.status
-                )
-            };
-            i = i + 1;
-        };
-        abort E_PROPOSAL_NOT_FOUND
+        assert!(table::contains(&treasury.proposals, proposal_id), E_PROPOSAL_NOT_FOUND);
+        let proposal = table::borrow(&treasury.proposals, proposal_id);
+        (
+            proposal.title,
+            proposal.description,
+            proposal.amount,
+            proposal.recipient,
+            proposal.proposer,
+            proposal.created_at,
+            proposal.voting_end_time,
+            proposal.yes_votes,
+            proposal.no_votes,
+            proposal.status
+        )
     }
 
     /// Initialize and share treasury (for deployment)
