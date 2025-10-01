@@ -7,58 +7,50 @@ export const MODULE_NAME = 'dao_treasury';
 // Utility functions for Sui contract interactions
 
 /**
- * Find treasury objects created by the deployed package
- * NOTE: queryObjects API has been removed from newer Sui SDK versions
- * Use getOwnedObjects with owner address instead
+ * Finds treasury objects by querying for the TreasuryCreated event.
+ * @param suiClient - The SuiClient instance.
+ * @returns A promise that resolves to an array of treasury objects.
  */
-export const findTreasuryObjects = async (suiClient: SuiClient, ownerAddress?: string) => {
+export const findTreasuryObjectsByEvent = async (suiClient: SuiClient) => {
   try {
-    if (!ownerAddress) {
-      console.warn('Owner address required to query objects');
-      return [];
-    }
-
-    // Query objects owned by the address
-    const objects = await suiClient.getOwnedObjects({
-      owner: ownerAddress,
-      options: {
-        showContent: true,
-        showType: true,
-        showOwner: true
-      }
+    const events = await suiClient.queryEvents({
+      query: {
+        MoveEventType: `${PACKAGE_ID}::${MODULE_NAME}::TreasuryCreated`,
+      },
+      order: 'descending',
     });
 
-    // Filter for Treasury objects from our package
-    const treasuryObjects = objects.data.filter(obj =>
-      obj.data?.type?.includes('Treasury') &&
-      obj.data?.type?.includes(PACKAGE_ID)
-    );
-
-    return treasuryObjects;
+    const treasuryIds = events.data.map(event => event.parsedJson?.treasury_id);
+    return await getTreasuryObjectsByIds(suiClient, treasuryIds);
   } catch (error) {
-    console.error('Error finding treasury objects:', error);
+    console.error('Error finding treasury objects by event:', error);
     return [];
   }
 };
 
 /**
- * Find events emitted by treasury contract
+ * Gets treasury objects by their IDs.
+ * @param suiClient - The SuiClient instance.
+ * @param objectIds - An array of object IDs to fetch.
+ * @returns A promise that resolves to an array of treasury objects.
  */
-export const findTreasuryEvents = async (suiClient: SuiClient) => {
+export const getTreasuryObjectsByIds = async (suiClient: SuiClient, objectIds: string[]) => {
+  if (objectIds.length === 0) {
+    return [];
+  }
+  
   try {
-    const events = await suiClient.queryEvents({
-      query: {
-        MoveModule: {
-          package: PACKAGE_ID,
-          module: MODULE_NAME
-        }
+    const objects = await suiClient.multiGetObjects({
+      ids: objectIds,
+      options: {
+        showContent: true,
+        showType: true,
+        showOwner: true,
       },
-      order: 'descending'
     });
-
-    return events.data;
+    return objects.filter(obj => obj.data?.type?.includes(`${PACKAGE_ID}::${MODULE_NAME}::Treasury`));
   } catch (error) {
-    console.error('Error finding treasury events:', error);
+    console.error('Error fetching treasury objects:', error);
     return [];
   }
 };
